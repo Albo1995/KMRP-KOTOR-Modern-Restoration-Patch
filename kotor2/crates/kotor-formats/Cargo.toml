@@ -1,0 +1,10 @@
+[package]
+name = "kotor-formats"
+version = "0.1.0"
+description = "Readers and writers for Odyssey engine (KotOR 1 / KotOR 2) resource formats"
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+thiserror = "2"
