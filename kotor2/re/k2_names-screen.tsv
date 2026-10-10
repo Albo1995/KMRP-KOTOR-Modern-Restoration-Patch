@@ -1,0 +1,93 @@
+0040CC70	CExoMoviePlayerInternal::InitializeMovie	registers "SWMovieWindow" (wndproc 0x40C4A0, hbrBackground 0), CreateWindowExA "SW Movie Player Window", BinkOpen/BinkBufferOpen/BinkBufferSetScale; error string "CExoMoviePlayerInternal::CExoMoviePlayerInternal() Can't open movie"
+0040CB20	CExoMoviePlayerInternal::ShutDown	+0x24=1, BinkPause/BinkClose(+0x48)/BinkBufferClose(+0x4C)/DestroyWindow(+0x50), +0x24=0
+0040D6F0	CExoMoviePlayerInternal::PlayMovieLoop	Bink DoFrame/Lock/CopyToBuffer/GetRects/Blit/NextFrame/Wait loop, polls CExoInput::GetEvents
+0040D430	CExoMoviePlayerInternal::PlayMovie	only caller of InitializeMovie (0x40D561) and PlayMovieLoop (0x40D570)
+0040C4A0	Global::MovieWinMessageHandler	lpfnWndProc of SWMovieWindow (0x40CCCC); WM_ACTIVATEAPP, WM_KEYDOWN(Esc), WM_SYSKEYDOWN, mouse, 0x407/0x408
+0040DD10	CExoMoviePlayerInternal::RepositionMovieWindow	Aspyr: MoveWindow movie window onto main client rect, BinkBufferSetOffset(+0x84,+0x88), PatBlt main window black; wndproc msg 0x408
+0040BE50	Global::ChangeResolutionForMovie	saves screen size to 0x9F42C0/C4/B1, ReInitAurora(screenW,screenH,32,1,0) at 0x40BF05 (no 640x480 in K2)
+0040BF40	Global::RestoreResolutionFromMovie	decrements 0xA1B764, re-reads ini via 0x78A7A0, ReInitAurora with saved size
+00409750	Global::ReInitAurora	(w,h,bpp,fullscreen,flag); called by SetVideoMode 0x78DD4B, movie pair, WinMain; uses "Shell_TrayWnd", VBO ini keys
+00411A80	CSWGuiManager::SetSize	compares/stores shorts +0x6C/+0x6E, UpdateAllFonts 0x413DD0, frees +0x7C, 0x411170
+00411870	CSWGuiManager::Update	per-frame: panels +0x88/+0x8C and modal +0x94/+0x98 -> vtable +0x38(dt), destroys flagged panels; called by MainLoop
+004113A0	CSWGuiManager::Draw	per-frame render: panel vtable +0x34, Aspyr pillarbox scissor-clear when W/H > 1.3333, tooltip, 3D cursor
+00412C00	CSWGuiManager::HandleMouseMove	stores x/y at +0/+4, 3D cursor +0x24, captured control +0x10; called by ProcessInput
+00410380	CSWGuiManager::Destructor	frees +0x84/+0x80/+0x7C/+0x3C, clears GUI_MANAGER_PTR 0xA1B49C
+00413650	CSWGuiManager::InitializeMouse3D	creates "gui_mouse" model for 3D cursor (+0x20/+0x24)
+00414090	CSWGuiManager::ReloadToolTipPanel	deletes [+0x3C], constructs tooltip 0x75FDA0 (K1 0x40A350 shape); called by OnResolutionChosen
+00413DD0	CSWGuiManager::UpdateAllFonts	likely: first call in SetSize (K1 SetSize order)
+00411170	CSWGuiManager::DetermineNeedToDraw	likely: last call in SetSize after freeing +0x7C (K1 order)
+00412400	CSWGuiManager::RescalePanels	Aspyr-added: scales every panel in +0x88 and +0x94 lists (and 8 in-game tab panels) by newW/panelW,newH/panelH; called only by OnResolutionChosen
+00479AB0	Global::GetGuiScale	Aspyr: 1+floor(max(0,screenW-1022)/1024)*0.5, cached at 0x9F5F64; used for map markers, dialog reply height, HUD
+004792C0	Global::GuiBeginOrtho	glGetIntegerv(GL_VIEWPORT), ortho 0..1, used before panel/scissor draws
+00479460	Global::GuiPushViewport	(x,y,w,h,color,flag,alpha): pushes GL viewport/scissor stack, rejects off-screen rects
+0078DBF0	CClientExoAppInternal::SetVideoMode	[this+0x1A0] current mode, EnumDisplaySettingsA, sets 0x9F42A4/A8/B0, ReInitAurora, GuiManager SetSize, main menu/load screen/GuiInGame resets
+0073FBD0	CClientExoApp::SetVideoMode	wrapper -> 0x78DBF0(mode,0); called by OnResolutionChosen
+0078A7A0	CClientExoAppInternal::ReadVideoModeSettings	reads Width/Height/RefreshRate from .\swkotor2.ini; validates with 0x93C9C0/0x93CA00/0x93CA30, fallback largest desktop-fitting mode or 1024x768
+0078A630	CClientExoAppInternal::ReadAndSetVideoMode	ReadVideoModeSettings, mode lookup 0x78E010, fallback 0x78DF40(1024,768,32,60), SetVideoMode
+0078DF40	CClientExoAppInternal::GetNearestVideoMode	defaults args from current globals, 0x93CA40, EnumDisplaySettingsA
+0093CA40	Global::FindNearestDisplayMode	enumerates EnumDisplaySettingsA, nearest bpp/width/height/refresh; refresh >=60 (or >=30 if w>=2000)
+0093CD00	Global::FindDisplayMode	exact w/h/bpp/refresh(or 0/1) match
+0093C960	Global::GetDesktopSize	Aspyr: GetDesktopWindow+GetWindowRect, cached 0xA80D90/0xA80D8C
+0093C9C0	Global::ModeFitsDesktop	Aspyr: w<=desktopW && h<=desktopH
+0093CA00	Global::ModeMeetsMinimum	Aspyr: w>=1024 && h>=720
+0093CA30	Global::ModeIsSupported	Aspyr stub, returns 1
+007D8540	CSWGuiOptionsResolution::Constructor	optresolution_p, LBL_RESOLUTION/LB_RESOLUTIONS/BTN_OK/BTN_CANCEL, "%d x %d"/"%d x %d @ %d Hz" rows from EnumDisplaySettingsA
+007D9280	CSWGuiOptionsResolution::OnResolutionChosen	row event 0x27 handler: SetVideoMode, writes Width/Height/RefreshRate, rebuilds graphics option panels 0x7D23E0/0x7D4620, RescalePanels 0x412400, ReloadToolTipPanel
+007D8FF0	CSWGuiOptionsResolution::HandleInputEvent	vtable slot 15; on 0x28/0x2E applies deferred ReInitAurora when [this+0x840]
+007D4620	CSWGuiOptionsGraphics::Constructor	optgraphics_p, BTN_RESOLUTION/BTN_RESOLUTIONLEFT/RIGHT, CB_SHADOWS...
+00712360	CExoResMan::GetKeyEntry	GetKeyEntryFromTable over lists +0x14,+0x18,+0x1C,+0x18,+0x10; only callee of Exists
+007122C0	CExoResMan::GetKeyEntryFromTable	walks a CExoKeyTable list, 0x726670 lookup
+00711ED0	CExoResMan::Exists	90 callers, wraps GetKeyEntry
+0072C7E0	CExoInputInternal::GetEvents	assert "CExoInputInternal::GetEvents() Invalid InputClass parameter"
+0072FA80	CExoInput::GetEvents	wrapper -> 0x72C7E0; called by ProcessInput and movie loop
+007AC470	CClientExoAppInternal::ProcessInput	thiscall(dt), called by MainLoop; GetEvents, HandleMouseMove
+00781BE0	CClientExoAppInternal::MainLoop	per-frame: ProcessInput, UpdateCamera 0x78C350, GuiManager Update/Draw, UpdateRumble
+0078C350	CClientExoAppInternal::UpdateCamera	likely: called from MainLoop 0x783132 when unpaused; camera input via CExoInput 0x72F9D0, module camera calls 0x7F3C70/0x7F3DE0/0x7F4220
+00865830	CSWPlayerControlCamRelative::Control	vtable slot 10; dt clamp 1.0, axes +0x10/+0x14, walking +0x18
+00514340	Vector::Normalize	likely: thiscall on a 3-float vector, called for movement vector when both axes non-zero
+00747210	CSWGuiMainInterface::Constructor	mipc28x6_p, HUD controls; Aspyr scale floats +0x1C9C/+0x1CA0, sets 0xA1B9F0
+0074A750	CSWGuiMainInterface::ScalarDeletingDestructor	vtable slot 0 -> 0x74AD90
+0074AD90	CSWGuiMainInterface::Destructor	writes CSWGuiMainInterface::vftable (0x74ADBB)
+0074C320	CSWGuiMainInterface::Update	vtable slot 14
+0074B3F0	CSWGuiMainInterface::Draw	vtable slot 13
+007469F0	CSWGuiMainInterface::HandleInputEvent	vtable slot 15
+00750790	CSWGuiMainInterface::DrawMap	HUD minimap: label +0x5AB4 at scaled rect +0x5D44..+0x5D50, fog 0x751230, arrow +0x5BFC
+00751230	CSWGuiMainInterface::DrawMapFog	fog grid over scaled minimap size +0x5D54/+0x5D58 (K1 0x688100 role)
+0079D3F0	CClientExoAppInternal::PlayRumblePattern	index vs [this+0x344], patterns [+0x340] stride 0x24, queue [+0x34C]/[+0x350]
+0079D4E0	CClientExoAppInternal::StopRumblePattern	scans [+0x350] queue; precedes UpdateRumble as in K1
+0079D550	CClientExoAppInternal::UpdateRumble	push 0x927C0 before CExoInput::SetRumble; called by MainLoop
+0079F010	CClientExoAppInternal::LookUpAndPerformRumbleWithCutOff	RumblePattern/RumbleCutOff 2DA lookups, category 0/1, cutoff radius vs position
+0077F240	CSWCCreature::RegisterCallbacks	animation events snd_Footstep, "hit", snd_hitground, Swing*, Clash, Contact, HitParry, blur_start...
+007631D0	Global::HitEvent	"hit" callback; attack record +4/+0x14/+0xC/+0x20 as K1
+00763110	Global::HitContactEvent	"Contact" callback -> ShowLightSaberContactVisual
+00771F70	CSWCCreature::ShowLightSaberContactVisual	LightSaberHook position -> VFX 0xFAB
+008EE4C0	CSWCProjectile::CreateMuzzleFlash	likely: "muzzleflash" model into [this+0x1AC], plays "impact"
+00893950	CSWGuiInGameMap::Constructor	vftable 0x9A67EC, map_p, canvas +0x13B8 / overlay CSWGuiMapHider +0x1160 sized ftol(vw/800*588) x ftol(vh/600*294)
+00894110	CSWGuiInGameMap::ScalarDeletingDestructor	vtable slot 0
+00894CD0	CSWGuiInGameMap::Draw	vtable slot 13; (vw-640)/2,(vh-480)/2 centring when flag bit0 clear
+00894DC0	CSWGuiInGameMap::HitCheckMouse	vtable slot 16; same centring as Draw, then overlay slot 17
+00894E90	CSWGuiInGameMap::HandleInputEvent	vtable slot 15
+00894320	CSWGuiInGameMap::SetupArea	likely: "lbl_map%s"/"lbl_mapm28aa" texture, reads 0x9F4390/94 and 588/294
+00895620	CSWGuiMapHider::Constructor	vftable 0x9A68B4; blackdot, mm_barrow (GetGuiScale*32), lbl_mapcircle 16x16, whitetarget
+00895AD0	CSWGuiMapHider::ScalarDeletingDestructor	vtable slot 0
+00895CC0	CSWGuiMapHider::Draw	vtable slot 14 (+0x38); fog grid, map notes, party markers, player arrow (all GUI-scaled)
+008972C0	CSWGuiMapHider::HitCheck	vtable slot 17; local coords, note controls +0x23C/+0x240
+005F7060	CSWCMap::WorldToMap	likely: world -> 588x294 map pixel, range-checked 0..0x24C/0..0x126 (K1 0x578E00 role)
+005F7350	CSWCMap::GetPartyMemberMapPosition	likely: index<3 from [+0x28+i*4]/[+0x34+i*4] (K1 0x5791B0 role)
+005F7010	CSWCMap::GetFogGrid	likely: returns explored bitfield and grid dims
+007BE4C0	CGuiInGame::Initialize	constructs letterboxes 0x8BA980, HUD 0x747210, map 0x893950 (when 0xA10760), dialog cinematic 0x8BBA80
+007D0760	CGuiInGame::SetActiveTabPanel	Aspyr lazy creation/destruction of the 8 tab panels (case 6 = CSWGuiInGameMap 0x1414 bytes)
+007CFCA0	CGuiInGame::ResetInterfaceForSize	likely: called by SetVideoMode when [app+0x40]; rebuilds HUD 0x747210 and dialog 0x8BBA80
+007BFB10	CGuiInGame::SetLetterboxMode	only caller of Letterbox SetTop/SetBottom/SetMiddle
+008BA980	CSWGuiDialogLetterbox::Constructor	vftable 0x9A7CBC
+008BACA0	CSWGuiDialogLetterbox::SetTop	bar = (H - ftol(W/2.3333))/2, mode 1
+008BADA0	CSWGuiDialogLetterbox::SetBottom	same bar, mode 2, reply area GetGuiScale*100
+008BAF10	CSWGuiDialogLetterbox::SetFull	mode 3, same bar formula (disp8 at 0x8BAF67)
+008BB260	CSWGuiDialogLetterbox::Draw	vtable slot 13; fade alpha [this+0x50] (KPM SemiTransparentLetterbox site 0x8BB3C3)
+008BB5D0	CSWGuiDialogTop::Constructor	vftable 0x9A7D3C; top box from bar -5
+008BB8D0	CSWGuiDialogTop::SetReply	likely: recomputes top box from bar -5; called on Cinematic+0x2BB0
+008BBA80	CSWGuiDialogCinematic::Constructor	vftable 0x9A7DCC; dialog_p, LB_REPLIES (+0x2760), LBL_MESSAGE (+0x2A50)
+008BC050	CSWGuiDialogCinematic::SetExtent	vtable slot 1; LB_REPLIES/LBL_MESSAGE width = panel width
+008BC230	CSWGuiDialogCinematic::SetReplies	likely: vtable slot 30; base 0x8B9FD0 then row-snaps LB_REPLIES when its flag bit1 set
+008BC3E0	CSWGuiDialogCinematic::Reset	likely: vtable slot 29; reply area from bar
+00892090	CSWGuiInGameCredits::Constructor	vftable CSWGuiInGameCredits; temporarily sets screen globals to 640x480 and SetSize(640,480) when [client+0x4C4]

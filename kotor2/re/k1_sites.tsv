@@ -1,0 +1,132 @@
+va	source	kind	extra	k1_function	offset
+00403D6C	windows-sites.json	bytes	8002	Global::ChangeResolutionForMovie	+0x7C
+00403D78	windows-sites.json	bytes	e001	Global::ChangeResolutionForMovie	+0x88
+00404BB0	kotor1.hooks.toml	detour:NativeMovieWindowCloseK1	always	CExoMoviePlayerInternal::ShutDown	+0x0
+00404D96	kotor1.hooks.toml	detour:CoreMovieFrameK1	no-controller	CExoMoviePlayerInternal::PlayMovieLoop	+0x116
+004051C3	kotor1.hooks.toml	detour:CancelMovieOnSpaceK1		Global::MovieWinMessageHandler	+0x33
+0040554B	kotor1.hooks.toml	detour:NativeMovieWindowOpenK1	always	CExoMoviePlayerInternal::InitializeMovie	+0x16B
+004057AC	windows-sites.json	bytes	8b4e488b013bd8	CExoMoviePlayerInternal::InitializeMovie	+0x3CC
+00407230	kotor1-native-runtime.hooks.toml	detour:KmrpPrepareResourcesK1		CExoResMan::GetKeyEntry	+0x0
+00409E60	kotor1.hooks.toml	detour:GuardPanelEchoK1		CSWGuiPanel::HandleInputEvent	+0x0
+0040A638	kotor1.hooks.toml	detour:OnSetActiveControlK1		CSWGuiPanel::SetActiveControl	+0x8
+0040A680	kotor1-native-runtime.hooks.toml	detour:KmrpPanelLayoutStartK1		CSWGuiPanel::StartLoadFromLayout	+0x0
+0040AA65	windows-sites.json	bytes	8002	CSWGuiPanel::GetExtentAccountingForPanelOffset	+0x65
+0040AA85	windows-sites.json	bytes	e001	CSWGuiPanel::GetExtentAccountingForPanelOffset	+0x85
+0040B6C7	windows-sites.json	bytes	80fd	CSWGuiPanel::HitCheckMouse	+0x37
+0040B6DA	windows-sites.json	bytes	20fe	CSWGuiPanel::HitCheckMouse	+0x4A
+0040B8F0	kotor1.hooks.toml	detour:NativePanelReleaseGffK1		CSWGuiPanel::StopLoadFromLayout	+0x0
+0040B930	kotor1-native-runtime.hooks.toml	detour:KmrpPanelControlK1		CSWGuiPanel::InitControl	+0x0
+0040BA6C	windows-sites.json	bytes	80fd	CSWGuiPanel::GetLocalMouseCoords	+0x4C
+0040BA83	windows-sites.json	bytes	20fe	CSWGuiPanel::GetLocalMouseCoords	+0x63
+0040BE70	kotor1-native-runtime.hooks.toml	detour:KmrpResolutionRequestedK1		CSWGuiManager::SetSize	+0x0
+0040BE70	kotor1-runtime-preview.hooks.toml	detour:KmrpResolutionRequestedK1		CSWGuiManager::SetSize	+0x0
+0040C1F6	kotor1.hooks.toml	detour:CancelActionBarKeyboardFocusOnMouseMoveK1		CSWGuiManager::HandleMouseMove	+0x16
+0040C24E	kotor1.hooks.toml	detour:KeyboardKeepFocusK1	always	CSWGuiManager::HandleMouseMove	+0x6E
+0040CE70	kotor1-runtime-preview.hooks.toml	detour:KmrpResolutionObservedK1		CSWGuiManager::Update	+0x0
+0040CE70	kotor1.hooks.toml	detour:CoreGuiFrameK1	no-controller	CSWGuiManager::Update	+0x0
+0040CF70	kotor1-native-runtime.hooks.toml	detour:KmrpPanelDestroyedK1		CSWGuiPanel::Destructor	+0x0
+00415E0D	windows-sites.json	bytes	8b465085c0	CSWGuiTextParams::SetText	+0xD
+00417992	windows-sites.json	bytes	8b400c89410c8b4c246c	CSWGuiButton::Initialize	+0x22
+00419A20	kotor1-native-runtime.hooks.toml	detour:KmrpControlDestroyedK1		CSWGuiControl::Destructor	+0x0
+0041A2F2	windows-sites.json	bytes	8d043f2bc885db897c241c894c2424	CSWGuiListBox::OrganizeOversized	+0x22
+0041A9D0	kotor1.hooks.toml	detour:KeyboardNavigateK1	always	CSWGuiNavigable::HandleInputEvent	+0x0
+0041B1C4	windows-sites.json	bytes	03	CSWGuiListBox::OrganizeControls	+0x84
+0041B26B	windows-sites.json	bytes	03	CSWGuiListBox::OrganizeControls	+0x12B
+0041B339	windows-sites.json	bytes	03	CSWGuiListBox::OrganizeControls	+0x1F9
+0041B3AE	windows-sites.json	bytes	03	CSWGuiListBox::OrganizeControls	+0x26E
+0041B46D	windows-sites.json	bytes	897c2420c744242400000000	CSWGuiListBox::OrganizeControls	+0x32D
+0041B48C	windows-sites.json	bytes	8d043f2bc8	CSWGuiListBox::OrganizeControls	+0x34C
+0041B4BF	kotor1-native-runtime.hooks.toml	detour:KmrpListRowK1		CSWGuiListBox::OrganizeControls	+0x37F
+0041B507	windows-sites.json	bytes	03ea	CSWGuiListBox::OrganizeControls	+0x3C7
+0041B52E	windows-sites.json	bytes	01	CSWGuiListBox::OrganizeControls	+0x3EE
+0041B540	kotor1-native-runtime.hooks.toml	detour:KmrpListRowK1		CSWGuiListBox::OrganizeControls	+0x400
+0041B553	windows-sites.json	bytes	03	CSWGuiListBox::OrganizeControls	+0x413
+0041B59F	kotor1-native-runtime.hooks.toml	detour:KmrpListRowK1		CSWGuiListBox::OrganizeControls	+0x45F
+0041C1D0	kotor1-native-runtime.hooks.toml	detour:KmrpListAddRowsK1		CSWGuiListBox::AddControls	+0x0
+0041CE20	kotor1.hooks.toml	detour:KeyboardListBoundaryK1	always	CSWGuiListBox::HandleInputEvent	+0x0
+0041FEB5	kotor1.hooks.toml	replace:	always	Global::AurTextureGetMaxTexID	+0x5
+0045992A	windows-sites.json	bytes	0fbf0560947b008d0480d1e00fbf906e947b000fbf806c947b00	CAurGUIImageInternal::Draw	+0xA
+0045A3B7	windows-sites.json	bytes	0f8c7f040000	CAurGUIStringInternal::WrapStrings	+0xC7
+0045A3DC	windows-sites.json	bytes	0f8c5a040000	CAurGUIStringInternal::WrapStrings	+0xEC
+0045A5E0	windows-sites.json	bytes	8b46144b3bd8894c24100f84440200	CAurGUIStringInternal::WrapStrings	+0x2F0
+0045A850	windows-sites.json	bytes	83ec4c894c2404	CAurGUIStringInternal::Draw	+0x0
+0046BE64	kotor1.hooks.toml	replace:	always	Global::AddPartToMeshBuckets	+0x74
+004A1770	windows-sites.json	bytes	6aff685c7e710064a100000000	CAurFont::TextOutA	+0x0
+004A8380	kotor1.hooks.toml	replace:	always	CAurTriangleBin::Destructor	+0x30
+004A847C	kotor1.hooks.toml	replace:	always	CAurTriangleBin::DestroyGrassPolys	+0x1C
+005DDE32	kotor1.hooks.toml	detour:NativeFreeSaveBufferK1	always	CERFFile::WriteResource	+0x272
+005E24E0	kotor1.hooks.toml	detour:NativeJoystickInitK1		CExoInputInternal::GetEvents	+0x0
+005E271E	kotor1.hooks.toml	detour:CaptureActionBarInputK1		CExoInputInternal::GetEvents	+0x23E
+005E30F6	kotor1.hooks.toml	detour:NativeJoystickBufferK1		CExoRawInputInternal::GetJoystickBuffer	+0x16
+005F0C64	kotor1-native-runtime.hooks.toml	detour:KmrpAllowRuntimeResolutionK1		CClientExoAppInternal::IsValidResolution	+0x4
+005F0C64	kotor1-runtime-preview.hooks.toml	detour:KmrpAllowRuntimeResolutionK1		CClientExoAppInternal::IsValidResolution	+0x4
+005F0C65	windows-sites.json	bytes	2003	CClientExoAppInternal::IsValidResolution	+0x5
+005F0C6F	windows-sites.json	bytes	5802	CClientExoAppInternal::IsValidResolution	+0xF
+005F18F6	kotor1-native-runtime.hooks.toml	detour:KmrpModeSwitchK1		CClientExoAppInternal::SetVideoMode	+0xC6
+005F5B3B	windows-sites.json	bytes	80020000c7442410e001	CClientExoAppInternal::ReadAndSetVideoMode	+0x8B
+005F74B0	kotor1.hooks.toml	detour:NativeRumbleStopK1		CClientExoAppInternal::StopRumblePattern	+0x0
+005F7617	kotor1.hooks.toml	detour:NativeRumbleK1		CClientExoAppInternal::UpdateRumble	+0x117
+005FB49F	kotor1.hooks.toml	detour:NativeRumblePlayK1		CClientExoAppInternal::PlayRumblePattern	+0xF
+005FB98E	kotor1.hooks.toml	detour:NativeRumbleCutoffK1		CClientExoAppInternal::CrownFutureLeader	+0x2AE
+006039CF	kotor1.hooks.toml	detour:NativeCameraFrameK1		CClientExoAppInternal::MainLoop	+0xB1F
+0060DE20	kotor1.hooks.toml	detour:NativeSaberContactK1		CSWCCreature::ShowLightSaberContactVisual	+0x0
+00617EB0	kotor1.hooks.toml	detour:NativeMeleeHitK1		Global::HitEvent	+0x0
+006227E0	kotor1.hooks.toml	detour:DispatchMenuInputK1		CClientExoAppInternal::ProcessInput	+0x0
+0062540D	windows-sites.json	bytes	20	CSWGuiMessageBox::FixMessageLabel	+0x6D
+006256DC	windows-sites.json	bytes	b80100007c0b3d1801	CSWGuiMessageBox::FixMessageLabel	+0x33C
+006256F6	windows-sites.json	bytes	b801	CSWGuiMessageBox::FixMessageLabel	+0x356
+00625759	windows-sites.json	bytes	1801	CSWGuiMessageBox::FixMessageLabel	+0x3B9
+006258E2	kotor1.hooks.toml	detour:FitMessageBoxK1	always	CSWGuiMessageBox::FixMessageLabel	+0x542
+00626F95	windows-sites.json	bytes	20	CSWGuiMessageBox::Constructor	+0x1A5
+0062785F	kotor1-native-runtime.hooks.toml	simple:		CSWGuiToolTipPanel::Constructor	+0x9F
+0062785F	kotor1-runtime-preview.hooks.toml	simple:		CSWGuiToolTipPanel::Constructor	+0x9F
+0062B39C	windows-sites.json	bytes	b09906	CGuiInGame::UpdateCreatedInGameGUI	+0x1BC
+0063C4F0	kotor1.hooks.toml	detour:NativeParryK1		CSWCObject::AnimationParry	+0x0
+00646BA0	kotor1.hooks.toml	detour:NativeSaberPowerK1		CSWCItem::ResolveCreaturePoweredAnimations	+0x0
+00679940	kotor1.hooks.toml	detour:NativeJoystickMovementK1		CSWPlayerControlCamRelative::Control	+0x0
+00679B71	kotor1.hooks.toml	detour:NativeJoystickSkipNormalizeK1		CSWPlayerControlCamRelative::Control	+0x231
+00686BA0	kotor1.hooks.toml	detour:NativeActionBarK1		CSWGuiMainInterface::Update	+0x0
+0068ACA1	windows-sites.json	bytes	d4ffff	CSWGuiMainInterface::DrawMap	+0x191
+0068B170	kotor1.hooks.toml	detour:ClearActionBarControlsK1		CSWGuiMainInterface::Destructor	+0x0
+0068C4E3	windows-sites.json	bytes	0004	CSWGuiMainInterface::Constructor	+0x3E3
+0068C4F4	windows-sites.json	bytes	05000074303d4006	CSWGuiMainInterface::Constructor	+0x3F4
+006928B3	windows-sites.json	bytes	8002	CSWGuiInGameMap::Draw	+0xA3
+006928C3	windows-sites.json	bytes	e001	CSWGuiInGameMap::Draw	+0xB3
+0069405B	windows-sites.json	bytes	20	CSWGuiMapHider::Constructor	+0xFB
+006940DC	windows-sites.json	bytes	10	CSWGuiMapHider::Constructor	+0x17C
+006944A8	windows-sites.json	bytes	d83d48777400	CSWGuiMapHider::Draw	+0xD8
+006944C4	windows-sites.json	bytes	d83dd4557400	CSWGuiMapHider::Draw	+0xF4
+006946F6	windows-sites.json	bytes	47eeff	CSWGuiMapHider::Draw	+0x326
+0069471A	windows-sites.json	bytes	f689442424b81400000083c1f6	CSWGuiMapHider::Draw	+0x34A
+00694763	windows-sites.json	bytes	0e	CSWGuiMapHider::Draw	+0x393
+00694777	windows-sites.json	bytes	f983c2f9	CSWGuiMapHider::Draw	+0x3A7
+00694A13	windows-sites.json	bytes	10	CSWGuiMapHider::Draw	+0x643
+00694A3A	windows-sites.json	bytes	7247eeff	CSWGuiMapHider::Draw	+0x66A
+00694A53	windows-sites.json	bytes	f883c2f8	CSWGuiMapHider::Draw	+0x683
+00694AAD	windows-sites.json	bytes	ff46eeff	CSWGuiMapHider::Draw	+0x6DD
+00694AC4	windows-sites.json	bytes	20	CSWGuiMapHider::Draw	+0x6F4
+00694AD0	windows-sites.json	bytes	f05283c0f0	CSWGuiMapHider::Draw	+0x700
+0069505C	windows-sites.json	bytes	00020000c74424200001	CSWGuiInGameMap::Constructor	+0x30C
+00695082	windows-sites.json	bytes	b8010000c74424200001	CSWGuiInGameMap::Constructor	+0x332
+006A74D4	windows-sites.json	bytes	4f6c894c240cdb44240cd80d88577500e8a33905000fbf576e2bd08954240cdb44240cd80dace97300e88a390500	CSWGuiDialogLetterbox::SetTop	+0x24
+006A7562	windows-sites.json	bytes	4f6c0fbf5f6e894c240cdb44240cd80d88577500e8113905008bd32bd08954240cdb44240cd80dace97300e8fa380500	CSWGuiDialogLetterbox::SetBottom	+0x22
+006A7945	windows-sites.json	bytes	556c89542410db442410d80d88577500e8323505000fbf4d6e2bc88bc1992bc2d1f82bc383e805	CSWGuiDialogTop::Constructor	+0x85
+006A7B5E	windows-sites.json	bytes	576c89542424db442424d80d88577500e8193305000fbf4f6e2bc88bc18b4c2408992bc2d1f82bc183c0fb	CSWGuiDialogTop::SetReply	+0x7E
+006A7CD0	windows-sites.json	bytes	8b96c419000089442410894c240c8d8ec41900008d44240450ff5204	CSWGuiDialogCinematic::SetExtent	+0x30
+006A7F3F	windows-sites.json	bytes	436c0fbf7b6e89442414db442414d80d88577500e8342f05008bcf2bc88bc1992bc28b542410d1f82bf8897c24280fbf4b6c8b7e10	CSWGuiDialogCinematic::Reset	+0x4F
+006A8C4F	windows-sites.json	bytes	6c89442410db442410d80de45a7500e8292205000fbf4f6e2bc88bc1992bc28b542464d1f889442428	CSWGuiDialogCinematic::Constructor	+0x10F
+006A8E1D	windows-sites.json	bytes	f686081a000002744f	CSWGuiDialogCinematic::SetReplies	+0x3D
+006AB9D5	kotor1.hooks.toml	detour:GrantedRowTextK1	always	CSWGuiInGameSkillEntry::SetExtent	+0xF5
+006B5336	windows-sites.json	bytes	4983e11583c1158bc18b4c24202bd0894424288b44242403ca83c025894c2420	CSWGuiStoreItemEntry::SetExtent	+0xC6
+006C2400	kotor1.hooks.toml	detour:ResolveSoloModeConfirmK1		CSWGuiInGameSoloModeQuery::HandleInputEvent	+0x0
+006CE0B0	kotor1.hooks.toml	detour:GrantedPopupFilledK1	always	CSWGuiSkillInfoBox::SetSkillList	+0xF0
+006D4440	kotor1.hooks.toml	detour:NativeMuzzleFlashK1		CSWCProjectile::CreateMuzzleFlash	+0x0
+006E0CF0	kotor1.hooks.toml	detour:ResolveResolutionConfirmK1		CSWGuiOptionsResolution::HandleInputEvent	+0x0
+006F28C0	kotor1.hooks.toml	detour:GuardPowersConfirmK1		CSWGuiPowersLevelUp::HandleInputEvent	+0x0
+006F4680	kotor1.hooks.toml	detour:GuardFeatsConfirmK1		CSWGuiFeatsCharGen::HandleInputEvent	+0x0
+006F6A10	kotor1.hooks.toml	detour:GuardSkillsConfirmK1		CSWGuiSkillsCharGen::HandleInputEvent	+0x0
+006F8880	kotor1.hooks.toml	detour:GuardAbilitiesConfirmK1		CSWGuiAbilitiesCharGen::HandleInputEvent	+0x0
+006F8FF0	kotor1.hooks.toml	detour:GuardPortraitConfirmK1		CSWGuiPortraitCharGen::HandleInputEvent	+0x0
+006FA220	kotor1.hooks.toml	detour:GuardNameConfirmK1		CSWGuiNameChargen::HandleInputEvent	+0x0
+0075477D	windows-sites.json	bytes	3369	Global::freeHighestPriorityLightsList	+0x188ED
+00755788	windows-sites.json	bytes	b96ddb	Global::freeHighestPriorityLightsList	+0x198F8

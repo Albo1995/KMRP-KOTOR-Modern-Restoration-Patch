@@ -1,0 +1,65 @@
+0040E5A0	CSWGuiPanel::Constructor	sets CSWGuiPanel::vftable, manager [+0x1C]=arg, border obj [+0x60], alpha 1.0 [+0x50]
+0040E860	CSWGuiPanel::Destructor	SEH; resets vftable CSWGuiPanel->CSWGuiObject; calls StopLoadFromLayout; from slot-0 0x87FDF0
+0040E980	CSWGuiPanel::SetExtent	panel vtable slot 1; copies rect to +4..+0x10, border [+0x60]->slot1
+0040EA00	CSWGuiPanel::CenterPanel	left=(mgr.w-w)/2, top=(mgr.h-h)/2, sets flag 1 at +0x48; K1 0x40A600 used as kCentreOnScreen
+0040EAA0	CSWGuiPanel::HandleInputEvent	panel vtable slot 15; forwards to [this+0x20] slot 15; base of chargen handlers
+0040EAE0	CSWGuiPanel::HitCheckMouse	panel vtable slot 16; recentring by (screen-640/480)/2, child slot 17
+0040EC00	CSWGuiPanel::SetActiveControl	panel vtable slot 2; swaps [this+0x20], slot15(1,1)/(0,1), sound 0x4122A0
+0040EC90	CSWGuiPanel::Draw	panel vtable slot 13; GetExtentAccountingForPanelOffset, border slot 3, children slot 14 (+0x38)
+0040E7B0	CSWGuiPanel::GetActiveControl	panel vtable slot 17; returns [this+0x20]
+0040EE40	CSWGuiPanel::StartLoadFromLayout	loads GFF res 0x7FF by CResRef, EXTENT/COLOR/BORDER/ALPHA/CONTROLS, Aspyr scale flags
+0040F5A0	CSWGuiPanel::StopLoadFromLayout	frees layout GFF [+0x30] when flag 2 of +0x48
+0040F620	CSWGuiPanel::InitControl	(control, tag, add, scale): loads control from layout, Aspyr extent scaling, files in [+0x24]
+0040FED0	CSWGuiPanel::GetLocalMouseCoords	mouse [0xA1B49C] recentred (640/480) minus panel origin
+00410020	CSWGuiPanel::GetExtentAccountingForPanelOffset	rect += (mgr.w-640)/2,(mgr.h-480)/2 by flags 0x10/0x20 of +0x48
+00416960	CSWGuiTextParams::Constructor	default font "dialogfont16x16", colors 1.0, strref -1, alignment 9
+00416E30	CSWGuiTextParams::SetText	CExoString assign 0x7337C0 then strref -1, owner [+0x50] text update; 389 callers
+00416EA0	CSWGuiTextParams::SetStrRef	strref [+8], TLK lookup 0x71DF90, assign
+00416FA0	CSWGuiTextParams::SetAlignment	[+0x38] low 6 bits, owner slot +0x1C
+00417010	CSWGuiTextParams::SetColor	[+0x1C..+0x24], owner slot +0xC
+00417140	CSWGuiTextParams::SetDefaultColor	[+0x2C..+0x34] then SetColor
+00418640	CSWGuiControl::Destructor	SEH; CSWGuiControl::vftable -> CSWGuiObject::vftable; 681 callers
+00418C50	CSWGuiControl::HandleInputEvent	CSWGuiControl vtable slot 15; runs event table [+0x3C]/[+0x40] (12-byte entries)
+004187B0	CSWGuiNavigable::HandleInputEvent	CSWGuiNavigable vtable slot 15; move-to +0x60/+0x64/+0x68/+0x6C by event code
+00418AF0	CSWGuiControl::AddEvent	(event, receiver, handler) - 619 callers, used by panel ctors (0x27 handlers)
+00419DC0	CSWGuiButton::Initialize	button vtable slot 39 (rect, text, border, hilight); K1 0x417970
+00419E90	CSWGuiButton::Initialize_2	button vtable slot 38 thunk (rect, proto) -> slot 39
+00419ED0	CSWGuiButton::SetExtent	button vtable slot 1
+0041A0A0	CSWGuiButton::Draw	button vtable slot 14
+0041A110	CSWGuiButton::HandleInputEvent	button vtable slot 15; calls Navigable::HandleInputEvent 0x4187B0
+0041D710	CSWGuiListBox::SetExtent	listbox vtable slot 1; content rect +0x29C..+0x2A8, scrollbar width +0x118, LEFTSCROLLBAR bit 0x10 of +0x2CC
+0041D810	CSWGuiListBox::SetScrollBarExtent	positions scrollbar [+0x10C] left/right of the list
+0041D940	CSWGuiListBox::HandleInputEvent	listbox vtable slot 15; cases 0x31/0x3D, 0x32/0x3E, 0x1F5..0x1FE
+0041E790	CSWGuiListBox::shouldScroll	height[+0x2A8] < PADDING[+0x2D0]+rowHeight[+0x2C4] && count>0 && !flag 0x100
+0041E800	CSWGuiListBox::getPagesToScroll	guess: (ftol a - ftol b)+1, used by OrganizeOversized
+0041E870	CSWGuiListBox::SetSelectedControl	selected index +0x2D6, slot15(0/1,1), sound, relayout
+0041E9D0	CSWGuiListBox::SetPadding	rejects PADDING > width/2 or > height/2 (K1 0x41C190 doc)
+0041EA50	CSWGuiListBox::OrganizeControls	row layout, 3 row loops calling row slot 1; K1 0x41B140
+0041F170	CSWGuiListBox::OrganizeUnequal	guess: taken when flag 0x100 of +0x2CC set
+0041F7F0	CSWGuiListBox::OrganizeOversized	single-item layout when shouldScroll; K1 0x41A2D0
+0041FC30	CSWGuiListBox::AddControls	(CExoArrayList*, ...): parent/id per row, flag 8, OrganizeControls
+0041FD90	CSWGuiListBox::AddControls_2	(ptr, count, ...) variant of AddControls
+0041FFD0	CSWGuiListBox::Load	strings BORDER/SCROLLBAR/LEFTSCROLLBAR/PADDING
+00420180	CSWGuiListBox::LoadProtoItem	strings PROTOITEM/CONTROLTYPE
+00479AB0	Aspyr::GuiFontScale	returns and stores [0x9F5F64] = 1 + 0.5*floor(max(0,screenW-1022)/1024)
+00479B10	CAurGUIStringInternal::UpdateFontScale	rescales [+0x54] when global font scale [0x9F5F64] changed ([+0x5C] last)
+0047AF30	CAurGUIStringInternal::WrapStrings	CAurGUIStringInternal vtable slot 19; K1 0x45A2F0
+0047B500	CAurGUIStringInternal::Draw	CAurGUIStringInternal vtable slot 31; K1 0x45A850
+0075AE40	CSWGuiMessageBox::Constructor	'confirm_p', BTN_OK +0x308, BTN_CANCEL +0x4D8, LB_MESSAGE +0x6A8, icon +0x1C0
+0075B8E0	CSWGuiMessageBox::HandleInputEvent	MessageBox vtable slot 15
+0075BF60	CSWGuiMessageBox::AddMessageLabel	sizes label [+0x78] to list width - 2*PADDING, AddControls_2 into LB_MESSAGE; K1 0x6252F0
+0075C080	CSWGuiMessageBox::FixMessageLabel	auto-fit loop with caps 440.0/280.0 x font scale; K1 0x6253A0
+0075CA60	CSWGuiMessageBox::OnPanelAdded	MessageBox vtable slot 18 (guess by K1 slot order)
+0075CC60	CSWGuiMessageBox::OnPanelRemoved	MessageBox vtable slot 19 (guess)
+0075FDA0	CSWGuiToolTipPanel::Constructor	loads 'tooltip8X6_p' unconditionally
+0089C5F0	CSWGuiSkillInfoBox::Constructor	'skillinfo_p', LB_SKILLS +0x68, LBL_MESSAGE +0x358, BTN_OK +0x4A0, 20 rows +0x678 stride 0x328
+0089CB60	CSWGuiSkillInfoBox::SetSkillList	fills rows via 0x8A5DD0, AddControls on LB_SKILLS; K1 0x6CDFC0
+0089CC50	CSWGuiSkillInfoBox::HandleInputEvent	SkillInfoBox vtable slot 15
+008A58E0	CSWGuiInGameSkillEntry::SetExtent	vtable slot 1; hex +0x1C0, hilight +0x238, icon +0x2B0, text +0xD8
+008B0C30	CSWGuiStoreItemEntry::SetExtent	vtable slot 1; icon 36, stack label 21/55 x 19, all x font scale
+008B9040	CSWGuiInGameSoloModeQuery::HandleInputEvent	vtable slot 15; 0x27/0x2D, 0x28/0x2E, 0x1F6/0x1F7, base 0x75B8E0
+00908920	CSWGuiPowersLevelUp::HandleInputEvent	vtable slot 15; ends call 0x40EAA0
+0090B200	CSWGuiFeatsCharGen::HandleInputEvent	vtable slot 15; ends call 0x40EAA0
+0090E850	CSWGuiSkillsCharGen::HandleInputEvent	vtable slot 15; ends call 0x40EAA0
+00912640	CSWGuiAbilitiesCharGen::HandleInputEvent	vtable slot 15; ends call 0x40EAA0
+00917C80	CSWGuiPortraitCharGen::HandleInputEvent	vtable slot 15; ends call 0x40EAA0
