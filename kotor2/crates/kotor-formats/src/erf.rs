@@ -131,6 +131,9 @@ pub struct Erf {
     /// The 116 reserved header bytes.
     pub reserved: Vec<u8>,
     lead: Hint<Vec<u8>>,
+    /// Localized-string offset of a source with no localized strings
+    /// (some writers store 0 there instead of 160).
+    empty_loc_offset: Hint<Option<u32>>,
 }
 
 impl Erf {
@@ -150,6 +153,7 @@ impl Erf {
             resources: Vec::new(),
             reserved: vec![0; 116],
             lead: Hint(Vec::new()),
+            empty_loc_offset: Hint(None),
         }
     }
 
@@ -211,8 +215,10 @@ impl Erf {
                 hint: DataHint::default(),
             });
         }
-        let canonical =
-            loc_off == HEADER_LEN && key_off == loc_end && res_off == key_off + 24 * entry_count;
+        let loc_len = loc_end - loc_off;
+        let canonical = (lang_count == 0 || loc_off == HEADER_LEN)
+            && key_off == HEADER_LEN + loc_len
+            && res_off == key_off + 24 * entry_count;
         let lead = if canonical {
             let (lead, hints) = capture_layout(data, res_off + 8 * entry_count, &spans);
             for (r, h) in resources.iter_mut().zip(hints) {
@@ -232,6 +238,7 @@ impl Erf {
             resources,
             reserved,
             lead: Hint(lead),
+            empty_loc_offset: Hint((lang_count == 0).then_some(loc_off as u32)),
         })
     }
 
@@ -284,7 +291,11 @@ impl Erf {
         out.put_u32(to32(self.loc_strings.len())?);
         out.put_u32(to32(loc.len())?);
         out.put_u32(to32(n)?);
-        out.put_u32(HEADER_LEN as u32);
+        let loc_off = match self.empty_loc_offset.0 {
+            Some(raw) if self.loc_strings.is_empty() => raw,
+            _ => HEADER_LEN as u32,
+        };
+        out.put_u32(loc_off);
         out.put_u32(to32(key_off)?);
         out.put_u32(to32(res_off)?);
         out.put_u32(self.build_year);
@@ -375,6 +386,17 @@ mod tests {
             bytes.extend(std::iter::repeat_n(0u8, pad));
             pos += d.len() + pad;
         }
+        let back = Erf::read(&bytes).unwrap();
+        assert_eq!(back, e);
+        assert_eq!(back.to_bytes().unwrap(), bytes);
+    }
+
+    #[test]
+    fn zero_loc_offset_without_strings_survives() {
+        let mut e = Erf::new("ERF");
+        e.insert("tex", ResType::TPC, vec![5; 9]);
+        let mut bytes = e.to_bytes().unwrap();
+        bytes[20..24].copy_from_slice(&0u32.to_le_bytes());
         let back = Erf::read(&bytes).unwrap();
         assert_eq!(back, e);
         assert_eq!(back.to_bytes().unwrap(), bytes);

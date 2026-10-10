@@ -104,7 +104,7 @@ impl TwoDa {
             .checked_mul(columns.len())
             .ok_or_else(|| Error::invalid(FMT, "cell count overflows"))?;
         let offsets_at = pos;
-        b.slice(offsets_at, cells * 2)?;
+        b.slice(offsets_at, cells.saturating_mul(2))?;
         pos += cells * 2;
         let pool_size = usize::from(b.u16(pos)?);
         pos += 2;

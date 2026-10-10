@@ -50,16 +50,18 @@ pub enum TpcFormat {
 
 impl TpcFormat {
     /// Bytes for one level.
+    /// Saturates at `usize::MAX` rather than overflowing on 32-bit targets.
     pub fn level_size(self, width: usize, height: usize) -> usize {
-        let (w, h) = (width.max(1), height.max(1));
+        let (w, h) = (width.max(1) as u64, height.max(1) as u64);
         let blocks = w.div_ceil(4) * h.div_ceil(4);
-        match self {
+        let bytes = match self {
             TpcFormat::Grey => w * h,
             TpcFormat::Rgb => w * h * 3,
             TpcFormat::Rgba | TpcFormat::SwizzledBgra => w * h * 4,
             TpcFormat::Dxt1 => blocks * 8,
             TpcFormat::Dxt5 => blocks * 16,
-        }
+        };
+        usize::try_from(bytes).unwrap_or(usize::MAX)
     }
 
     /// A short name.
@@ -170,7 +172,9 @@ impl Tpc {
     }
 
     fn chain(format: TpcFormat, w: usize, h: usize, mips: usize) -> usize {
-        (0..mips).map(|l| format.level_size(w >> l, h >> l)).sum()
+        (0..mips)
+            .map(|l| format.level_size(w >> l, h >> l))
+            .fold(0usize, usize::saturating_add)
     }
 
     /// Layers and per-layer size for a kind.
@@ -188,7 +192,7 @@ impl Tpc {
         let (layers, w, h) = self.dims(kind);
         (1..=usize::from(self.mip_count).max(1))
             .rev()
-            .find(|&m| layers * Tpc::chain(format, w, h, m) <= avail)
+            .find(|&m| layers.saturating_mul(Tpc::chain(format, w, h, m)) <= avail)
     }
 
     fn base_kind(&self) -> TpcKind {
@@ -209,7 +213,7 @@ impl Tpc {
                 && h > 0
                 && usize::from(self.width) % numx == 0
                 && usize::from(self.height) % numy == 0
-                && layers * Tpc::chain(format, w, h, m) == self.data.len()
+                && layers.saturating_mul(Tpc::chain(format, w, h, m)) == self.data.len()
             {
                 return kind;
             }
@@ -250,7 +254,7 @@ impl Tpc {
                 needed: layers * format.level_size(w, h),
                 len: data.len(),
             })?;
-        let mut split = layers * Tpc::chain(format, w, h, m);
+        let mut split = layers.saturating_mul(Tpc::chain(format, w, h, m));
         if !is_texty(&body[split..]) {
             if let Some(alt) = Tpc::animated_split(&t, format, body) {
                 split = alt;
@@ -275,7 +279,7 @@ impl Tpc {
         let kind = TpcKind::Animated { numx, numy };
         let (layers, w, h) = t.dims(kind);
         let m = usize::from(t.mip_count).max(1);
-        let split = layers * Tpc::chain(format, w, h, m);
+        let split = layers.saturating_mul(Tpc::chain(format, w, h, m));
         let fits = split <= body.len() && is_texty(&body[split..]);
         (fits && cycle_frames(&Txi::parse_bytes(&body[split..])) == Some((numx, numy)))
             .then_some(split)

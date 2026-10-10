@@ -88,6 +88,8 @@ impl KeyFile {
         let key_table = us(b.u32(20)?);
         let build_year = b.u32(24)?;
         let build_day = b.u32(28)?;
+        b.slice(file_table, bif_count.saturating_mul(12))?;
+        b.slice(key_table, key_count.saturating_mul(22))?;
         let mut bifs = Vec::with_capacity(bif_count.min(4096));
         for i in 0..bif_count {
             let at = file_table + 12 * i;

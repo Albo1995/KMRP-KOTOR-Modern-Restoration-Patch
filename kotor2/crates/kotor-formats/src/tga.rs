@@ -128,7 +128,9 @@ impl Tga {
         };
         let bpp = t.bpp()?;
         let (w, h) = (usize::from(t.width), usize::from(t.height));
-        let n = w * h;
+        let n = w * h; // at most 65535^2, which fits even a 32-bit usize
+        let too_big = || Error::invalid(FMT, format!("{w}x{h} is too large for this platform"));
+        n.checked_mul(4).ok_or_else(too_big)?;
         let mut pos = 18 + id_len + cmap_bytes;
         let raw: Vec<u8> = if image_type < 8 {
             let s = b.slice(pos, n * bpp)?;
