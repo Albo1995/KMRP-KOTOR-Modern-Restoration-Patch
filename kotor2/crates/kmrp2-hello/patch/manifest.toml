@@ -1,0 +1,14 @@
+[patch]
+id = "kmrp2-hello"
+name = "KMRP2 Hello (SDK smoke test)"
+version = "0.1.0"
+author = "KMRP KotOR 2 port"
+description = "Writes kmrp2.log in the game folder when KOTOR Patch Manager loads it: the load time, the process uptime and the executable's SHA-256. Changes nothing in the game."
+requires = []
+conflicts = []
+
+# The Windows swkotor2.exe builds KPM's address databases list
+# (AddressDatabases/kotor2_*_aspyr.db in the KPM submodule).
+[patch.supported_versions]
+kotor2_gog_aspyr = "777BEE235A9E8BDD9863F6741BC3AC54BB6A113B62B1D2E4D12BBE6DB963A914"
+kotor2_steam_aspyr = "6A522E71631DCEE93467BD2010F3B23D9145326E1E2E89305F13AB104DBBFFEF"

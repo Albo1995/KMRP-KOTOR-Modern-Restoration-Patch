@@ -1,0 +1,17 @@
+[package]
+name = "kmrp2-hello"
+version = "0.1.0"
+description = "Minimal KOTOR Patch Manager patch module for swkotor2.exe: logs its load and the executable's SHA-256, and exports an example detour"
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+publish = false
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+kpm-sdk = { path = "../kpm-sdk", default-features = false }
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_System_LibraryLoader", "Win32_System_SystemServices"] }

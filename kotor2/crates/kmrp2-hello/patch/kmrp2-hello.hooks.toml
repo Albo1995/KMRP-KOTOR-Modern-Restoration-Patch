@@ -1,0 +1,28 @@
+[metadata]
+target_versions = [
+    "777BEE235A9E8BDD9863F6741BC3AC54BB6A113B62B1D2E4D12BBE6DB963A914",
+    "6A522E71631DCEE93467BD2010F3B23D9145326E1E2E89305F13AB104DBBFFEF",
+]
+
+# No hooks yet, so KPM installs this as a DLL-only patch: it loads
+# patches\kmrp2-hello.dll and the module's DllMain writes kmrp2.log.
+#
+# The example detour below is commented out until a real site is found and
+# checked with `kpm-tool disasm` and `kpm-tool verify`. Do not guess the
+# address: original_bytes must be the exact bytes at it, at least 5, ending
+# on an instruction boundary, with no relative call/jmp/jcc among them.
+#
+# [[hooks]]
+# address = 0x00000000          # TODO: a function entry in swkotor2.exe
+# type = "detour"
+# function = "Kmrp2ExampleDetour"
+# original_bytes = []           # TODO: the bytes at that address
+# skip_original_bytes = false
+#
+# [[hooks.parameters]]
+# source = "ecx"                # `this` at a __thiscall entry
+# type = "pointer"
+#
+# [[hooks.parameters]]
+# source = "esp+4"              # address of the first stack argument
+# type = "pointer"
