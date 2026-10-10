@@ -1,0 +1,29 @@
+[package]
+name = "kpm-sdk"
+version = "0.1.0"
+description = "Rust SDK for KOTOR Patch Manager (KPM) patch modules: the detour ABI, a typed hooks.toml model, game-memory and engine-call helpers, logging"
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+publish = false
+
+[features]
+default = ["model"]
+# The serde/toml model of hooks.toml, manifest.toml and patch_config.toml.
+# A patch module that only needs the runtime helpers can turn it off.
+model = ["dep:serde", "dep:toml"]
+
+[dependencies]
+serde = { version = "1", features = ["derive"], optional = true }
+toml = { version = "0.8", optional = true }
+sha2 = "0.10"
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.61", features = [
+    "Win32_Foundation",
+    "Win32_System_Diagnostics_Debug",
+    "Win32_System_LibraryLoader",
+    "Win32_System_Memory",
+    "Win32_System_SystemInformation",
+    "Win32_System_Threading",
+] }
