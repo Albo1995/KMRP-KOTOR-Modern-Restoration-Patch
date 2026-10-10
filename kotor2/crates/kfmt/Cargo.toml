@@ -1,0 +1,14 @@
+[package]
+name = "kfmt"
+version = "0.1.0"
+description = "Command-line inspector for KotOR resource formats, built on kotor-formats"
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[[bin]]
+name = "kfmt"
+path = "src/main.rs"
+
+[dependencies]
+kotor-formats = { path = "../kotor-formats" }
