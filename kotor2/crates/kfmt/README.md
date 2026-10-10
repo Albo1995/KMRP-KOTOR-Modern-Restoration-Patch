@@ -33,6 +33,7 @@ show what an install actually holds.
 | command | does |
 | --- | --- |
 | `gff dump <file>` | JSON: each struct `{"struct_id", "fields": [{"label", "type", "value"}]}`, so field order, duplicate labels and stored types are all visible |
+| `gff diff <a> [<b>]` | for each file: every header section's offset and size and how much of it is referenced, unreferenced (with the ranges), shared or overlapping; then whether the bytes match and the first semantic difference between the trees, by path. With one file, compares it with its own rewrite. Exit 0 when the trees are equal |
 | `gff roundtrip <file> [-o out]` | reads and rewrites; reports `byte-identical` or the sizes, first differing offset, differing-byte count and a hex window around it. `-o -` writes the output to stdout |
 | `gui list <file>` | every control (depth first) with its GFF path, tag, type, extent and font |
 | `key list <chitin.key> [--type ext] [--bifs]` | resources as `name.ext  bif  entry`, or the BIF table with the path each BIF resolved to (`MISSING` if not found) |

@@ -21,6 +21,12 @@
 //! is valid whatever was edited; when nothing was edited and the source file
 //! was densely packed (no unreferenced or shared bytes) the output is
 //! byte-identical. The hints are invisible to `==`.
+//!
+//! Unreferenced bytes in the three variable sections (field data, field
+//! indices, list indices) are kept with the block they follow, and blocks the
+//! source shared stay shared, so files with dead or shared bytes also come
+//! back exactly. [`section_usage`] reports both; [`first_difference`] compares
+//! two trees.
 
 use std::collections::HashMap;
 
@@ -566,6 +572,340 @@ pub struct Gff {
     pub root: GffStruct,
     /// The source label table (raw 16-byte entries), reused on write.
     labels: Hint<Vec<[u8; 16]>>,
+    /// Unreferenced bytes of the field-data, field-indices and list-indices
+    /// sections, reproduced on write.
+    layout: Hint<[SectionGaps; 3]>,
+}
+
+/// Bytes of a variable section that no field or struct references, keyed by
+/// the source offset of the block they follow.
+#[derive(Clone, Debug, Default)]
+struct SectionGaps {
+    lead: Vec<u8>,
+    after: HashMap<u32, Vec<u8>>,
+}
+
+/// Section names of the three variable sections, in [`SectionGaps`] order.
+const VAR_SECTIONS: [&str; 3] = ["field data", "field indices", "list indices"];
+
+/// Sort referenced `(start, len)` blocks and collect the bytes between them.
+fn capture_gaps(section: &[u8], ranges: &[(usize, usize)]) -> SectionGaps {
+    let mut r = ranges.to_vec();
+    r.sort_unstable();
+    r.dedup_by(|b, a| {
+        // Same start: keep the longer extent in `a`.
+        if a.0 == b.0 {
+            a.1 = a.1.max(b.1);
+            true
+        } else {
+            false
+        }
+    });
+    let mut g = SectionGaps::default();
+    let mut pos = 0usize;
+    let mut prev: Option<u32> = None;
+    for &(start, len) in &r {
+        if start >= pos {
+            let gap = section.get(pos..start).unwrap_or_default().to_vec();
+            match prev {
+                None => g.lead = gap,
+                Some(p) if !gap.is_empty() => {
+                    g.after.insert(p, gap);
+                }
+                Some(_) => {}
+            }
+            prev = Some(start as u32);
+        }
+        pos = pos.max(start + len);
+    }
+    let tail = section
+        .get(pos.min(section.len())..)
+        .unwrap_or_default()
+        .to_vec();
+    match prev {
+        None => g.lead = tail,
+        Some(p) if !tail.is_empty() => g.after.entry(p).or_default().extend_from_slice(&tail),
+        Some(_) => {}
+    }
+    g
+}
+
+/// The first difference between two trees, as `path: description`, or
+/// `None` if they are equal (layout hints are ignored, as with `==`).
+pub fn first_difference(a: &Gff, b: &Gff) -> Option<String> {
+    if a.file_type != b.file_type {
+        return Some(format!(
+            "file type {:?} vs {:?}",
+            a.file_type_str(),
+            b.file_type_str()
+        ));
+    }
+    struct_difference(&a.root, &b.root, "(root)")
+}
+
+fn struct_difference(a: &GffStruct, b: &GffStruct, path: &str) -> Option<String> {
+    if a.struct_id != b.struct_id {
+        return Some(format!(
+            "{path}: struct id {} vs {}",
+            a.struct_id, b.struct_id
+        ));
+    }
+    for (i, (fa, fb)) in a.fields.iter().zip(&b.fields).enumerate() {
+        let here = format!("{path}/{}", fa.label);
+        if fa.label != fb.label {
+            return Some(format!(
+                "{path}: field {i} label {:?} vs {:?}",
+                fa.label, fb.label
+            ));
+        }
+        match (&fa.value, &fb.value) {
+            (GffValue::Struct(x), GffValue::Struct(y)) => {
+                if let Some(d) = struct_difference(x, y, &here) {
+                    return Some(d);
+                }
+            }
+            (GffValue::List(x), GffValue::List(y)) => {
+                if x.len() != y.len() {
+                    return Some(format!(
+                        "{here}: list of {} vs {} structs",
+                        x.len(),
+                        y.len()
+                    ));
+                }
+                for (j, (sx, sy)) in x.iter().zip(y).enumerate() {
+                    if let Some(d) = struct_difference(sx, sy, &format!("{here}[{j}]")) {
+                        return Some(d);
+                    }
+                }
+            }
+            (x, y) if x.type_id() != y.type_id() => {
+                return Some(format!(
+                    "{here}: type {} vs {}",
+                    x.type_name(),
+                    y.type_name()
+                ));
+            }
+            (x, y) if x != y => {
+                let show = |v: &GffValue| {
+                    let s = format!("{v:?}");
+                    if s.len() > 120 {
+                        format!(
+                            "{}...",
+                            &s[..s.char_indices().nth(117).map_or(s.len(), |c| c.0)]
+                        )
+                    } else {
+                        s
+                    }
+                };
+                return Some(format!("{here}: {} vs {}", show(x), show(y)));
+            }
+            _ => {}
+        }
+    }
+    if a.fields.len() != b.fields.len() {
+        return Some(format!(
+            "{path}: {} vs {} fields",
+            a.fields.len(),
+            b.fields.len()
+        ));
+    }
+    None
+}
+
+/// How one section of a GFF is used (see [`section_usage`]).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct SectionUsage {
+    /// Section name.
+    pub name: &'static str,
+    /// Offset in the file.
+    pub offset: usize,
+    /// Size in bytes (struct/field/label sections: entries).
+    pub size: usize,
+    /// Bytes (or entries) reachable from the root struct.
+    pub referenced: usize,
+    /// Unreferenced byte ranges `(start, len)` relative to the section.
+    pub unreferenced: Vec<(usize, usize)>,
+    /// Blocks referenced from more than one place.
+    pub shared: usize,
+    /// Blocks that partly overlap another block.
+    pub overlapping: usize,
+}
+
+/// Report which parts of each section a GFF actually references. A file is
+/// rewritten byte-identically when nothing is shared or overlapping.
+pub fn section_usage(data: &[u8]) -> Result<Vec<SectionUsage>> {
+    let (_, u) = parse(data)?;
+    let mut out = vec![
+        counted("structs", u.offsets[0], &u.structs_seen),
+        counted("fields", u.offsets[1], &u.fields_seen),
+        SectionUsage {
+            name: "labels",
+            offset: u.offsets[2],
+            size: u.label_count,
+            referenced: u.labels_seen.iter().filter(|&&x| x).count(),
+            unreferenced: Vec::new(),
+            shared: 0,
+            overlapping: 0,
+        },
+    ];
+    for (i, name) in VAR_SECTIONS.iter().enumerate() {
+        let mut r = u.ranges[i].clone();
+        r.sort_unstable();
+        let mut shared = 0;
+        let mut overlapping = 0;
+        let mut unref = Vec::new();
+        let mut pos = 0usize;
+        let mut referenced = 0usize;
+        let mut last: Option<(usize, usize)> = None;
+        for &(s, l) in &r {
+            if last == Some((s, l)) {
+                shared += 1;
+                continue;
+            }
+            if s < pos {
+                overlapping += 1;
+            } else if s > pos {
+                unref.push((pos, s - pos));
+            }
+            referenced += (s + l).saturating_sub(pos.max(s));
+            pos = pos.max(s + l);
+            last = Some((s, l));
+        }
+        if pos < u.sizes[i] {
+            unref.push((pos, u.sizes[i] - pos));
+        }
+        out.push(SectionUsage {
+            name,
+            offset: u.offsets[3 + i],
+            size: u.sizes[i],
+            referenced,
+            unreferenced: unref,
+            shared,
+            overlapping,
+        });
+    }
+    Ok(out)
+}
+
+fn counted(name: &'static str, offset: usize, seen: &[bool]) -> SectionUsage {
+    let mut unref = Vec::new();
+    let mut i = 0;
+    while i < seen.len() {
+        if !seen[i] {
+            let start = i;
+            while i < seen.len() && !seen[i] {
+                i += 1;
+            }
+            unref.push((start, i - start));
+        } else {
+            i += 1;
+        }
+    }
+    SectionUsage {
+        name,
+        offset,
+        size: seen.len(),
+        referenced: seen.iter().filter(|&&x| x).count(),
+        unreferenced: unref,
+        shared: 0,
+        overlapping: 0,
+    }
+}
+
+/// What the parser saw, for layout capture and [`section_usage`].
+struct Usage {
+    offsets: [usize; 6],
+    sizes: [usize; 3],
+    label_count: usize,
+    ranges: [Vec<(usize, usize)>; 3],
+    structs_seen: Vec<bool>,
+    fields_seen: Vec<bool>,
+    labels_seen: Vec<bool>,
+}
+
+fn parse(data: &[u8]) -> Result<(Gff, Usage)> {
+    let b = Bytes::new(data, FMT);
+    b.slice(0, HEADER_LEN)?;
+    let file_type = b.array::<4>(0)?;
+    let version = b.array::<4>(4)?;
+    if &version[..3] != b"V3." {
+        return Err(Error::BadSignature {
+            format: FMT,
+            found: String::from_utf8_lossy(&data[..8]).into_owned(),
+            expected: "<type>V3.2",
+        });
+    }
+    let h: Vec<usize> = (0..12)
+        .map(|i| b.u32(8 + 4 * i).map(us))
+        .collect::<Result<_>>()?;
+    let section = |off: usize, len: Option<usize>, what: &str| -> Result<&[u8]> {
+        let len = len.ok_or_else(|| Error::invalid(FMT, format!("{what} size overflows")))?;
+        b.slice(off, len).map_err(|_| {
+            Error::invalid(
+                FMT,
+                format!(
+                    "{what} section ({len} bytes at {off}) runs past the end of the file ({} bytes)",
+                    data.len()
+                ),
+            )
+        })
+    };
+    let structs = section(h[0], h[1].checked_mul(12), "struct")?;
+    let fields = section(h[2], h[3].checked_mul(12), "field")?;
+    let label_bytes = section(h[4], h[5].checked_mul(16), "label")?;
+    let field_data = section(h[6], Some(h[7]), "field data")?;
+    let field_indices = section(h[8], Some(h[9]), "field indices")?;
+    let list_indices = section(h[10], Some(h[11]), "list indices")?;
+    if h[1] == 0 {
+        return Err(Error::invalid(
+            FMT,
+            "no structs (a GFF needs a root struct)",
+        ));
+    }
+    let labels: Vec<[u8; 16]> = label_bytes
+        .chunks_exact(16)
+        .map(|c| {
+            let mut a = [0u8; 16];
+            a.copy_from_slice(c);
+            a
+        })
+        .collect();
+    let mut r = Parser {
+        structs: Bytes::new(structs, FMT),
+        fields: Bytes::new(fields, FMT),
+        labels: &labels,
+        field_data: Bytes::new(field_data, FMT),
+        field_indices: Bytes::new(field_indices, FMT),
+        list_indices: Bytes::new(list_indices, FMT),
+        on_stack: vec![false; h[1]],
+        depth: 0,
+        ranges: Default::default(),
+        structs_seen: vec![false; h[1]],
+        fields_seen: vec![false; h[3]],
+        labels_seen: vec![false; h[5]],
+    };
+    let root = r.read_struct(0)?;
+    let secs = [field_data, field_indices, list_indices];
+    let layout = [0, 1, 2].map(|i| capture_gaps(secs[i], &r.ranges[i]));
+    let usage = Usage {
+        offsets: [h[0], h[2], h[4], h[6], h[8], h[10]],
+        sizes: [h[7], h[9], h[11]],
+        label_count: h[5],
+        ranges: r.ranges,
+        structs_seen: r.structs_seen,
+        fields_seen: r.fields_seen,
+        labels_seen: r.labels_seen,
+    };
+    Ok((
+        Gff {
+            file_type,
+            version,
+            root,
+            labels: Hint(labels),
+            layout: Hint(layout),
+        },
+        usage,
+    ))
 }
 
 impl Gff {
@@ -580,6 +920,7 @@ impl Gff {
             version: *b"V3.2",
             root: GffStruct::new(u32::MAX),
             labels: Hint(Vec::new()),
+            layout: Hint(Default::default()),
         }
     }
 
@@ -592,62 +933,7 @@ impl Gff {
 
     /// Parse a GFF V3.x file.
     pub fn read(data: &[u8]) -> Result<Gff> {
-        let b = Bytes::new(data, FMT);
-        b.slice(0, HEADER_LEN)?;
-        let file_type = b.array::<4>(0)?;
-        let version = b.array::<4>(4)?;
-        if &version[..3] != b"V3." {
-            return Err(Error::BadSignature {
-                format: FMT,
-                found: String::from_utf8_lossy(&data[..8]).into_owned(),
-                expected: "<type>V3.2",
-            });
-        }
-        let h: Vec<usize> = (0..12)
-            .map(|i| b.u32(8 + 4 * i).map(us))
-            .collect::<Result<_>>()?;
-        let section = |off: usize, len: Option<usize>, what: &str| -> Result<&[u8]> {
-            let len = len.ok_or_else(|| Error::invalid(FMT, format!("{what} size overflows")))?;
-            b.slice(off, len)
-                .map_err(|_| Error::invalid(FMT, format!("{what} section ({len} bytes at {off}) runs past the end of the file ({} bytes)", data.len())))
-        };
-        let structs = section(h[0], h[1].checked_mul(12), "struct")?;
-        let fields = section(h[2], h[3].checked_mul(12), "field")?;
-        let label_bytes = section(h[4], h[5].checked_mul(16), "label")?;
-        let field_data = section(h[6], Some(h[7]), "field data")?;
-        let field_indices = section(h[8], Some(h[9]), "field indices")?;
-        let list_indices = section(h[10], Some(h[11]), "list indices")?;
-        if h[1] == 0 {
-            return Err(Error::invalid(
-                FMT,
-                "no structs (a GFF needs a root struct)",
-            ));
-        }
-        let labels: Vec<[u8; 16]> = label_bytes
-            .chunks_exact(16)
-            .map(|c| {
-                let mut a = [0u8; 16];
-                a.copy_from_slice(c);
-                a
-            })
-            .collect();
-        let mut r = Parser {
-            structs: Bytes::new(structs, FMT),
-            fields: Bytes::new(fields, FMT),
-            labels: &labels,
-            field_data: Bytes::new(field_data, FMT),
-            field_indices: Bytes::new(field_indices, FMT),
-            list_indices: Bytes::new(list_indices, FMT),
-            on_stack: vec![false; h[1]],
-            depth: 0,
-        };
-        let root = r.read_struct(0)?;
-        Ok(Gff {
-            file_type,
-            version,
-            root,
-            labels: Hint(labels),
-        })
+        parse(data).map(|(g, _)| g)
     }
 
     /// Serialize. See the module docs for the layout rules.
@@ -665,6 +951,11 @@ struct Parser<'a> {
     list_indices: Bytes<'a>,
     on_stack: Vec<bool>,
     depth: usize,
+    /// Referenced `(start, len)` blocks of field data, field indices, list indices.
+    ranges: [Vec<(usize, usize)>; 3],
+    structs_seen: Vec<bool>,
+    fields_seen: Vec<bool>,
+    labels_seen: Vec<bool>,
 }
 
 impl Parser<'_> {
@@ -710,6 +1001,10 @@ impl Parser<'_> {
                     .map_err(|_| Error::invalid(FMT, format!("struct {index}: field index list at {data} ({n} entries) runs past its section")))?
             }
         };
+        if count > 1 {
+            self.ranges[1].push((us(data), 4 * count));
+        }
+        self.structs_seen[idx] = true;
         self.on_stack[idx] = true;
         self.depth += 1;
         let fields = field_ids
@@ -741,6 +1036,8 @@ impl Parser<'_> {
             )
         })?;
         let label = text::decode(trim_nul(label_raw));
+        self.fields_seen[us(index)] = true;
+        self.labels_seen[us(label_index)] = true;
         let fd = self.field_data;
         let at = us(data);
         let ctx = |e: Error| Error::invalid(FMT, format!("field {label:?} (type {type_id}): {e}"));
@@ -799,6 +1096,7 @@ impl Parser<'_> {
                     .map(|i| li.u32(at + 4 + 4 * i))
                     .collect::<Result<Vec<_>>>()
                     .map_err(ctx)?;
+                self.ranges[2].push((at, 4 + 4 * count));
                 let items = ids
                     .into_iter()
                     .map(|s| self.read_struct(s))
@@ -810,7 +1108,70 @@ impl Parser<'_> {
                 data,
             },
         };
+        if GffValue::is_complex(type_id) {
+            self.ranges[0].push((at, complex_len(&value)));
+        }
         Ok(GffField { label, value, hint })
+    }
+}
+
+/// Bytes a complex value occupies in the field data, as this crate writes it.
+fn complex_len(v: &GffValue) -> usize {
+    match v {
+        GffValue::DWord64(_) | GffValue::Int64(_) | GffValue::Double(_) => 8,
+        GffValue::String(s) => 4 + s.chars().count(),
+        GffValue::ResRef(s) => 1 + s.chars().count(),
+        GffValue::LocString(l) => {
+            12 + l
+                .strings
+                .iter()
+                .map(|x| 8 + x.text.chars().count())
+                .sum::<usize>()
+        }
+        GffValue::Void(b) => 4 + b.len(),
+        GffValue::Orientation(_) => 16,
+        GffValue::Vector(_) => 12,
+        _ => 0,
+    }
+}
+
+/// Appends blocks to a variable section, reproducing the source's
+/// unreferenced bytes and sharing blocks the source shared.
+struct SectionBuilder<'a> {
+    out: Vec<u8>,
+    gaps: &'a SectionGaps,
+    emitted: HashMap<u32, (u32, Vec<u8>)>,
+}
+
+impl<'a> SectionBuilder<'a> {
+    fn new(gaps: &'a SectionGaps) -> Self {
+        SectionBuilder {
+            out: gaps.lead.clone(),
+            gaps,
+            emitted: HashMap::new(),
+        }
+    }
+
+    /// Add a block that sat at `hint` in the source; returns its offset.
+    fn add(&mut self, hint: Option<u32>, block: Vec<u8>, what: &str) -> Result<u32> {
+        if let Some(h) = hint {
+            if let Some((off, bytes)) = self.emitted.get(&h) {
+                if *bytes == block {
+                    return Ok(*off);
+                }
+            }
+        }
+        let off = len_u32(self.out.len(), what)?;
+        self.out.extend_from_slice(&block);
+        if let Some(h) = hint {
+            if !self.emitted.contains_key(&h) {
+                if let Some(gap) = self.gaps.after.get(&h) {
+                    self.out.extend_from_slice(gap);
+                }
+                self.emitted.insert(h, (off, block));
+            }
+        }
+        Ok(off)
     }
 }
 
@@ -945,7 +1306,8 @@ impl<'a> Writer<'a> {
         }
 
         // Field data.
-        let mut field_data = Vec::new();
+        let [fd_gaps, fi_gaps, li_gaps] = &gff.layout.0;
+        let mut field_data = SectionBuilder::new(fd_gaps);
         let mut data_of = vec![0u32; nf];
         let complex: Vec<usize> = (0..nf)
             .filter(|&f| GffValue::is_complex(w.fields[f].f.value.type_id()))
@@ -953,36 +1315,43 @@ impl<'a> Writer<'a> {
         let mut corder = complex.clone();
         corder.sort_by_key(|&f| (key(w.fields[f].f.hint.data), f));
         for f in corder {
-            data_of[f] = len_u32(field_data.len(), "field data offset")?;
-            write_complex(&mut field_data, &w.fields[f].f.value)?;
+            let mut block = Vec::new();
+            write_complex(&mut block, &w.fields[f].f.value)?;
+            data_of[f] = field_data.add(w.fields[f].f.hint.data, block, "field data offset")?;
         }
+        let field_data = field_data.out;
 
         // List indices.
-        let mut list_indices = Vec::new();
+        let mut list_indices = SectionBuilder::new(li_gaps);
         let mut lists: Vec<usize> = (0..nf)
             .filter(|&f| matches!(w.fields[f].f.value, GffValue::List(_)))
             .collect();
         lists.sort_by_key(|&f| (key(w.fields[f].f.hint.data), f));
         for f in lists {
-            data_of[f] = len_u32(list_indices.len(), "list indices offset")?;
             let children = &w.fields[f].children;
-            list_indices.put_u32(len_u32(children.len(), "list length")?);
+            let mut block = Vec::with_capacity(4 + 4 * children.len());
+            block.put_u32(len_u32(children.len(), "list length")?);
             for &c in children {
-                list_indices.put_u32(sfinal[c]);
+                block.put_u32(sfinal[c]);
             }
+            data_of[f] = list_indices.add(w.fields[f].f.hint.data, block, "list indices offset")?;
         }
+        let list_indices = list_indices.out;
 
         // Field indices.
-        let mut field_indices = Vec::new();
+        let mut field_indices = SectionBuilder::new(fi_gaps);
         let mut indices_of = vec![0u32; ns];
         let mut multi: Vec<usize> = (0..ns).filter(|&s| w.structs[s].fields.len() > 1).collect();
         multi.sort_by_key(|&s| (key(w.structs[s].s.hint.indices), s));
         for s in multi {
-            indices_of[s] = len_u32(field_indices.len(), "field indices offset")?;
+            let mut block = Vec::with_capacity(4 * w.structs[s].fields.len());
             for &f in &w.structs[s].fields {
-                field_indices.put_u32(ffinal[f]);
+                block.put_u32(ffinal[f]);
             }
+            indices_of[s] =
+                field_indices.add(w.structs[s].s.hint.indices, block, "field indices offset")?;
         }
+        let field_indices = field_indices.out;
 
         // Struct array.
         let mut struct_bytes = Vec::with_capacity(ns * 12);
@@ -1343,6 +1712,83 @@ mod tests {
         bytes[field_off + 8..field_off + 12].copy_from_slice(&0u32.to_le_bytes());
         let err = Gff::read(&bytes).unwrap_err().to_string();
         assert!(err.contains("contains itself"), "{err}");
+    }
+
+    #[test]
+    fn unreferenced_section_bytes_round_trip() {
+        // Insert dead bytes at the end of each variable section (field data at
+        // header slot 3, field indices 4, list indices 5) and fix the header.
+        let mut bytes = sample().to_bytes().unwrap();
+        let rd = |b: &[u8], at: usize| u32::from_le_bytes(b[at..at + 4].try_into().unwrap());
+        for (slot, dead) in [(3usize, 6usize), (4, 8), (5, 12)] {
+            let off_at = 8 + 8 * slot;
+            let end = (rd(&bytes, off_at) + rd(&bytes, off_at + 4)) as usize;
+            bytes.splice(end..end, std::iter::repeat_n(0xAB, dead));
+            let count = rd(&bytes, off_at + 4) + dead as u32;
+            bytes[off_at + 4..off_at + 8].copy_from_slice(&count.to_le_bytes());
+            for later in slot + 1..6 {
+                let at = 8 + 8 * later;
+                let v = rd(&bytes, at) + dead as u32;
+                bytes[at..at + 4].copy_from_slice(&v.to_le_bytes());
+            }
+        }
+        let g = Gff::read(&bytes).unwrap();
+        assert_eq!(g, sample());
+        assert_eq!(g.to_bytes().unwrap(), bytes);
+
+        let usage = section_usage(&bytes).unwrap();
+        let dead: Vec<usize> = usage[3..]
+            .iter()
+            .map(|u| u.unreferenced.iter().map(|r| r.1).sum())
+            .collect();
+        assert_eq!(dead, [6, 8, 12]);
+        assert!(usage[..3].iter().all(|u| u.unreferenced.is_empty()));
+    }
+
+    #[test]
+    fn first_difference_names_the_path() {
+        let a = sample();
+        assert_eq!(first_difference(&a, &a.clone()), None);
+        let mut b = a.clone();
+        b.root
+            .path_struct_mut("CONTROLS[1]/EXTENT")
+            .unwrap()
+            .set_int("TOP", 7)
+            .unwrap();
+        let d = first_difference(&a, &b).unwrap();
+        assert!(
+            d.starts_with("(root)/CONTROLS[1]/EXTENT/TOP: Int(-20) vs Int(7)"),
+            "{d}"
+        );
+        b.root.get_list_mut("CONTROLS").unwrap().pop();
+        assert!(first_difference(&a, &b).unwrap().contains("list of 3 vs 2"));
+    }
+
+    #[test]
+    fn shared_field_data_is_kept_shared() {
+        // Two string fields pointing at one field-data block.
+        let mut g = Gff::new("GFF");
+        g.root.set("A", GffValue::String("same".into()));
+        g.root.set("B", GffValue::String("same".into()));
+        let mut bytes = g.to_bytes().unwrap();
+        let rd = |b: &[u8], at: usize| u32::from_le_bytes(b[at..at + 4].try_into().unwrap());
+        let fields = rd(&bytes, 16) as usize;
+        // Point field 1 at field 0's data and drop the second copy.
+        let first = rd(&bytes, fields + 8);
+        bytes[fields + 20..fields + 24].copy_from_slice(&first.to_le_bytes());
+        let fd_off = rd(&bytes, 32) as usize;
+        let fd_len = rd(&bytes, 36) as usize;
+        bytes.drain(fd_off + fd_len / 2..fd_off + fd_len);
+        let half = (fd_len / 2) as u32;
+        bytes[36..40].copy_from_slice(&half.to_le_bytes());
+        for at in [40usize, 48] {
+            let v = rd(&bytes, at) - half;
+            bytes[at..at + 4].copy_from_slice(&v.to_le_bytes());
+        }
+        let back = Gff::read(&bytes).unwrap();
+        assert_eq!(back.root.get_str("B"), Some("same"));
+        assert_eq!(back.to_bytes().unwrap(), bytes);
+        assert_eq!(section_usage(&bytes).unwrap()[3].shared, 1);
     }
 
     #[test]

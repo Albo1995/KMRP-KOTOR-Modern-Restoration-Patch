@@ -7,7 +7,7 @@ use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
 use kotor_formats::error::read_file;
-use kotor_formats::gff::Gff;
+use kotor_formats::gff::{self, Gff};
 use kotor_formats::gui::Gui;
 use kotor_formats::key::Chitin;
 use kotor_formats::restype::{parse_resource_name, ResType};
@@ -23,6 +23,9 @@ kfmt - inspect and round-trip KotOR (Odyssey engine) resource files
 USAGE:
   kfmt gff dump <file>                       print a GFF (.gui, .utc, ...) as JSON
   kfmt gff roundtrip <file> [-o <out>|-o -]  read, rewrite, report byte-identical or the diff
+  kfmt gff diff <a> <b>                      header sections, section usage and the first
+                                             semantic difference (pass one file to diff it
+                                             against its own rewrite)
   kfmt gui list <file.gui>                   list controls: path, tag, type, extent, font
   kfmt key list <chitin.key> [--type <ext>] [--bifs]
                                              list resources (or the BIF table)
@@ -219,9 +222,12 @@ impl Out {
 }
 
 fn cmd_gff(a: &Args) -> Res<ExitCode> {
-    let sub = need(a, 1, "gff subcommand (dump | roundtrip)")?;
+    let sub = need(a, 1, "gff subcommand (dump | roundtrip | diff)")?;
     let path = need(a, 2, "file")?;
     let data = read(path)?;
+    if sub == "diff" {
+        return gff_diff(path, &data, a.pos.get(3).map(String::as_str));
+    }
     match sub {
         "dump" => {
             let g = ctx(path, Gff::read(&data))?;
@@ -237,6 +243,74 @@ fn cmd_gff(a: &Args) -> Res<ExitCode> {
         }
         s => fail(format!("unknown gff subcommand {s:?}\n\n{USAGE}")),
     }
+}
+
+fn print_layout(o: &mut Out, label: &str, data: &[u8]) -> Res {
+    o.line(&format!(
+        "{label}: {} bytes, type {:?}",
+        data.len(),
+        String::from_utf8_lossy(data.get(..8).unwrap_or(data))
+    ))?;
+    let usage = ctx(label, gff::section_usage(data))?;
+    o.line("  section          offset      size  referenced  unreferenced  shared  overlapping")?;
+    for u in &usage {
+        let unref: usize = u.unreferenced.iter().map(|r| r.1).sum();
+        o.line(&format!(
+            "  {:<14} {:>8} {:>9} {:>11} {:>13} {:>7} {:>12}",
+            u.name, u.offset, u.size, u.referenced, unref, u.shared, u.overlapping
+        ))?;
+        for (start, len) in u.unreferenced.iter().take(8) {
+            o.line(&format!(
+                "      unreferenced: {len} at +{start} ({:#x} in the file)",
+                u.offset + start
+            ))?;
+        }
+        if u.unreferenced.len() > 8 {
+            o.line(&format!(
+                "      ... {} more unreferenced ranges",
+                u.unreferenced.len() - 8
+            ))?;
+        }
+    }
+    o.line("  (struct, field and label sizes are entry counts; the others are bytes)")
+}
+
+fn gff_diff(path_a: &str, a: &[u8], path_b: Option<&str>) -> Res<ExitCode> {
+    let ga = ctx(path_a, Gff::read(a))?;
+    let (label_b, b) = match path_b {
+        Some(p) => (p.to_string(), read(p)?),
+        None => (format!("{path_a} (rewritten)"), ctx(path_a, ga.to_bytes())?),
+    };
+    let gb = ctx(&label_b, Gff::read(&b))?;
+    let mut o = Out::new();
+    print_layout(&mut o, path_a, a)?;
+    print_layout(&mut o, &label_b, &b)?;
+    if a == b.as_slice() {
+        o.line("bytes: identical")?;
+    } else {
+        let first = a
+            .iter()
+            .zip(&b)
+            .position(|(x, y)| x != y)
+            .unwrap_or(a.len().min(b.len()));
+        o.line(&format!(
+            "bytes: differ, first at offset {first} ({first:#x}), sizes {} vs {}",
+            a.len(),
+            b.len()
+        ))?;
+    }
+    let code = match gff::first_difference(&ga, &gb) {
+        None => {
+            o.line("tree: equal (any byte difference is layout only)")?;
+            ExitCode::SUCCESS
+        }
+        Some(d) => {
+            o.line(&format!("tree: first difference: {d}"))?;
+            ExitCode::from(1)
+        }
+    };
+    o.finish()?;
+    Ok(code)
 }
 
 fn cmd_gui(a: &Args) -> Res<ExitCode> {

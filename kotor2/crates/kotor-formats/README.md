@@ -42,6 +42,19 @@ Offsets are always recomputed, so the output is valid after any edit. When
 nothing was edited and the source had no unreferenced or shared bytes, the
 output is byte-identical. The recorded positions are invisible to `==`.
 
+Bytes in the field-data, field-indices and list-indices sections that nothing
+references are kept too, attached to the block they follow, and a block two
+fields or lists shared in the source stays shared. This was added after the
+first run against a KotOR 2 install (2026-10-10): 2080 of 2085 GFFs in the
+BIFs came back identical, while `temp_char.bic` (field indices) and four
+`*palstd.itp` palettes (list indices) came back shorter. The first differing
+offsets, 0x2c and 0x34, are those sections' size fields in the header, and
+unreferenced bytes are the likely cause. That cause is **not yet confirmed**:
+`kfmt gff diff <file>` prints each section's unreferenced, shared and
+overlapping bytes, and the next run will show whether these five now match.
+A block that only partly overlaps another cannot be reproduced; such files
+still rewrite to an equal tree and are reported as layout-only differences.
+
 **ERF / RIM.** The data is emitted in source offset order with the bytes the
 source had between resources (alignment padding) and before the first one.
 ERF tables are written in the conventional order header, localized strings,
@@ -66,8 +79,9 @@ files.** The ignored tests in [`tests/game_install.rs`](tests/game_install.rs)
 do that against a real install; until they have been run, treat these as
 open:
 
-* Whether every KotOR 2 `.gui` and `.2da` in the BIFs is densely packed, so
-  that the round trip is byte-identical rather than merely equivalent.
+* First run against a KotOR 2 install (reported by the owner, 2026-10-10):
+  164/164 GUI, 424 2DA, 5282 TPC, 27 archives and `dialog.tlk` byte-identical;
+  2080/2085 GFFs byte-identical. The five others are described above.
 * TPC cube maps (height = 6 x width) and animated textures (`proceduretype
   cycle`, `numx`, `numy`) are laid out as xoreos describes; neither has been
   checked against a real file here.

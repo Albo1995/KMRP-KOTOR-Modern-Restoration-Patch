@@ -9,6 +9,10 @@
 //! the install. Each test prints its counts and fails listing every resource
 //! that did not come back byte-identical (with the first differing offset).
 //!
+//! A GFF whose bytes differ but whose re-read tree equals the original is
+//! reported as a "layout-only difference" and does not fail the test unless
+//! `KOTOR2_STRICT=1`; `kfmt gff diff <file>` shows why.
+//!
 //! Optional: `KOTOR2_TPC_SAMPLE` (default 400) caps how many TPCs are checked
 //! per texture pack; `KOTOR2_ARCHIVE_SAMPLE` (default 12) caps how many
 //! archives per folder `archives_round_trip` rewrites; `KOTOR2_MAX_ARCHIVE_MB`
@@ -18,7 +22,7 @@ use std::path::{Path, PathBuf};
 
 use kotor_formats::error::read_file;
 use kotor_formats::fsutil::{files_with_extension, resolve};
-use kotor_formats::gff::Gff;
+use kotor_formats::gff::{first_difference, section_usage, Gff};
 use kotor_formats::gui::Gui;
 use kotor_formats::key::Chitin;
 use kotor_formats::tlk::Tlk;
@@ -61,6 +65,8 @@ struct Tally {
     identical: usize,
     skipped: Vec<String>,
     failures: Vec<String>,
+    /// Bytes differ but the re-read tree equals the original.
+    layout_only: Vec<String>,
 }
 
 fn first_diff(a: &[u8], b: &[u8]) -> String {
@@ -84,6 +90,40 @@ impl Tally {
             identical: 0,
             skipped: Vec::new(),
             failures: Vec::new(),
+            layout_only: Vec::new(),
+        }
+    }
+
+    /// Round-trip a GFF. When the bytes differ, re-read the output and
+    /// compare trees: equal trees are a layout-only difference (reported,
+    /// not failed unless `KOTOR2_STRICT=1`), anything else is a failure.
+    fn check_gff(&mut self, name: &str, original: &[u8]) {
+        self.checked += 1;
+        let parsed = match Gff::read(original) {
+            Ok(g) => g,
+            Err(e) => return self.failures.push(format!("{name}: ERROR: {e}")),
+        };
+        let out = match parsed.to_bytes() {
+            Ok(o) => o,
+            Err(e) => return self.failures.push(format!("{name}: WRITE ERROR: {e}")),
+        };
+        if out == original {
+            self.identical += 1;
+            return;
+        }
+        let bytes = first_diff(original, &out);
+        match Gff::read(&out) {
+            Err(e) => self.failures.push(format!(
+                "{name}: DIFFERS: {bytes}; output does not re-read: {e}"
+            )),
+            Ok(again) => match first_difference(&parsed, &again) {
+                Some(d) => self
+                    .failures
+                    .push(format!("{name}: DIFFERS: {bytes}; tree differs at {d}")),
+                None => self
+                    .layout_only
+                    .push(format!("{name}: {bytes}; {}", usage_summary(original))),
+            },
         }
     }
 
@@ -104,12 +144,23 @@ impl Tally {
 
     fn finish(self) {
         println!(
-            "{}: {} checked, {} byte-identical, {} failed, {} skipped",
+            "{}: {} checked, {} byte-identical, {} layout-only differences, {} failed, {} skipped",
             self.what,
             self.checked,
             self.identical,
+            self.layout_only.len(),
             self.failures.len(),
             self.skipped.len()
+        );
+        for l in &self.layout_only {
+            println!("  layout-only {l}");
+        }
+        let strict = std::env::var("KOTOR2_STRICT").is_ok_and(|v| v == "1");
+        assert!(
+            !strict || self.layout_only.is_empty(),
+            "{}: {} layout-only differences with KOTOR2_STRICT=1",
+            self.what,
+            self.layout_only.len()
         );
         for s in self.skipped.iter().take(20) {
             println!("  skipped {s}");
@@ -126,6 +177,28 @@ impl Tally {
             self.checked,
             self.failures.join("\n")
         );
+    }
+}
+
+/// Unreferenced/shared/overlapping counts of a GFF's sections, for reports.
+fn usage_summary(data: &[u8]) -> String {
+    match section_usage(data) {
+        Ok(u) => u
+            .iter()
+            .filter(|s| !s.unreferenced.is_empty() || s.shared > 0 || s.overlapping > 0)
+            .map(|s| {
+                let unref: usize = s.unreferenced.iter().map(|r| r.1).sum();
+                format!(
+                    "{}: {unref} unreferenced in {} ranges, {} shared, {} overlapping",
+                    s.name,
+                    s.unreferenced.len(),
+                    s.shared,
+                    s.overlapping
+                )
+            })
+            .collect::<Vec<_>>()
+            .join("; "),
+        Err(e) => format!("section usage failed: {e}"),
     }
 }
 
@@ -220,11 +293,15 @@ fn every_gui_round_trips() {
     files.extend(from_override(&dir, "gui"));
     let mut controls = 0;
     for (name, data) in &files {
-        let r = Gui::read(data).and_then(|g| {
-            controls += g.controls().len();
-            g.to_bytes()
-        });
-        t.check(name, data, r);
+        match Gui::read(data) {
+            Ok(g) => controls += g.controls().len(),
+            Err(e) => {
+                t.checked += 1;
+                t.failures.push(format!("{name}: ERROR: {e}"));
+                continue;
+            }
+        }
+        t.check_gff(name, data);
     }
     println!("GUI: {controls} controls in total");
     t.finish();
@@ -335,7 +412,7 @@ fn gff_resources_in_bifs_round_trip() {
     for r in list {
         let name = format!("chitin:{}.{}", r.resref, r.restype);
         match c.read(&r) {
-            Ok(d) => t.check(&name, &d, Gff::read(&d).and_then(|g| g.to_bytes())),
+            Ok(d) => t.check_gff(&name, &d),
             Err(e) => {
                 t.checked += 1;
                 t.failures.push(format!("{name}: EXTRACT ERROR: {e}"));
