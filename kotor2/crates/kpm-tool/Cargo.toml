@@ -1,0 +1,21 @@
+[package]
+name = "kpm-tool"
+version = "0.1.0"
+description = "Offline verifier, disassembler, pattern finder and .kpatch packager for KOTOR Patch Manager patches"
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+publish = false
+
+[[bin]]
+name = "kpm-tool"
+path = "src/main.rs"
+
+[dependencies]
+kpm-sdk = { path = "../kpm-sdk" }
+anyhow = "1"
+clap = { version = "4", features = ["derive"] }
+goblin = { version = "0.9", default-features = false, features = ["std", "pe32", "pe64"] }
+iced-x86 = { version = "1.21", default-features = false, features = ["std", "decoder", "intel", "instr_info"] }
+toml = "0.8"
+zip = { version = "2", default-features = false, features = ["deflate"] }
