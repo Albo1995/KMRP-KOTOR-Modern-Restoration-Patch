@@ -14,4 +14,4 @@ crate-type = ["cdylib", "rlib"]
 kpm-sdk = { path = "../kpm-sdk", default-features = false }
 
 [target.'cfg(windows)'.dependencies]
-windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_System_LibraryLoader", "Win32_System_SystemServices"] }
+windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_Graphics_Gdi", "Win32_Graphics_OpenGL", "Win32_System_LibraryLoader", "Win32_System_Memory", "Win32_System_SystemServices"] }

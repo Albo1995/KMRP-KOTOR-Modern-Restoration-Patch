@@ -9,6 +9,8 @@
 //! with its address left as a TODO, so the packaged patch installs as a
 //! DLL-only patch (KPM loads the module and applies no hooks).
 
+pub mod capture;
+
 use std::sync::atomic::{AtomicU32, Ordering};
 
 use kpm_sdk::{c_void, kpm_log};
@@ -101,6 +103,7 @@ mod entry {
         let uptime = kpm_sdk::process::process_uptime_ms();
         kpm_sdk::log::init(super::LOG_FILE);
         kpm_sdk::log::install_panic_logger();
+        super::capture::install();
         // Hashing reads the whole executable: do it off the loader lock.
         let spawned = std::thread::Builder::new()
             .name("kmrp2-hello".into())
